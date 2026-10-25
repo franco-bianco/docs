@@ -12,6 +12,7 @@ Source for the public bapsolver API documentation, built with [Mintlify](https:/
 | `reference/`            | Errors and limits                                         |
 | `api-reference/`        | API overview; endpoint pages come from `openapi.json`     |
 | `openapi.json`          | The public OpenAPI document                               |
+| `style.css`             | Global styles: a 14px root for a denser layout            |
 
 ## Preview
 

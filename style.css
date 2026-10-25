@@ -1,0 +1,10 @@
+/* A denser layout: Mintlify sizes in rem, so a smaller root scales text and spacing together. */
+html {
+  font-size: 14px;
+}
+
+/* Guide body copy at the root size (Mintlify sets it to 1.125rem) with tighter lines. */
+.prose {
+  font-size: 1rem;
+  line-height: 1.6;
+}
