@@ -1,0 +1,1335 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "bapsolver API",
+    "version": "0.2.0",
+    "description": "Submit a token job for a page and its public reCAPTCHA v3 site key, then poll the job for the token."
+  },
+  "servers": [
+    {
+      "url": "https://api.bapsolver.xyz",
+      "description": "Production"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Jobs",
+      "description": "Create, read, list and cancel token jobs."
+    },
+    {
+      "name": "Service",
+      "description": "Service health."
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Service"
+        ],
+        "operationId": "getHealth",
+        "summary": "Check service health",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Service status.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "requestId",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "description": "Public and unauthenticated. Returns `ok: true` while the service is up. A healthy service can still fail a job."
+      }
+    },
+    "/v1/jobs": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "operationId": "createJob",
+        "summary": "Create a job",
+        "description": "Returns at once with `202 Accepted` and the job in the `queued` state. The `Location` header holds the job path. Read the job with Get a job until it is `done` or `failed`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The job was queued.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              },
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Job"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "requestId",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "examples": {
+                  "queued": {
+                    "value": {
+                      "ok": true,
+                      "requestId": "0f6c1d2e-8a4b-4c3d-9e1f-2a3b4c5d6e7f",
+                      "data": {
+                        "id": "3b1f7c9a-2d4e-4f6a-8b0c-1d2e3f4a5b6c",
+                        "kind": "recap_v3",
+                        "url": "https://www.example.com/login",
+                        "siteKey": "YOUR_SITE_KEY",
+                        "action": "login",
+                        "status": "queued",
+                        "createdAt": "2026-10-25T09:30:00.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: an unknown field or kind, a wrong type, a proxy on a kind that takes none or missing on one that needs it, a bad URL or action.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer credentials are missing or invalid.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "const": "Bearer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The JSON request body exceeds 1 MiB.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The request rate or the job queue limit was reached.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "Seconds before retrying."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server failure.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The service cannot accept jobs: SANDBOX_DISABLED when it is not set up to run jobs, or SHUTTING_DOWN while it restarts. Retry SHUTTING_DOWN after a short wait.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "operationId": "listJobs",
+        "summary": "List jobs",
+        "description": "Returns the jobs the service holds, newest first, without their tokens. Read a token with Get a job.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "queued",
+                "running",
+                "done",
+                "failed"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^([1-9][0-9]?|1[0-9]{2}|200)$"
+            },
+            "description": "1 to 200; 50 when absent. Out of range is a 400."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The jobs.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "jobs": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/JobSummary"
+                          }
+                        }
+                      },
+                      "required": [
+                        "jobs"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "requestId",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "examples": {
+                  "jobs": {
+                    "value": {
+                      "ok": true,
+                      "requestId": "0f6c1d2e-8a4b-4c3d-9e1f-2a3b4c5d6e7f",
+                      "data": {
+                        "jobs": [
+                          {
+                            "id": "3b1f7c9a-2d4e-4f6a-8b0c-1d2e3f4a5b6c",
+                            "kind": "recap_v3",
+                            "url": "https://www.example.com/login",
+                            "siteKey": "YOUR_SITE_KEY",
+                            "action": "login",
+                            "status": "done",
+                            "createdAt": "2026-10-25T09:30:00.000Z",
+                            "startedAt": "2026-10-25T09:30:00.012Z",
+                            "finishedAt": "2026-10-25T09:30:03.400Z",
+                            "result": {
+                              "expiresAt": "2026-10-25T09:32:00.000Z",
+                              "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+                              "acceptLanguage": "en-US,en;q=0.9",
+                              "secUa": "\"Chromium\";v=\"156\", \"Google Chrome\";v=\"156\", \"Not.A/Brand\";v=\"99\"",
+                              "secUaMobile": "?0",
+                              "secUaPlatform": "\"Windows\""
+                            }
+                          },
+                          {
+                            "id": "3b1f7c9a-2d4e-4f6a-8b0c-1d2e3f4a5b6c",
+                            "kind": "recap_v3",
+                            "url": "https://www.example.com/login",
+                            "siteKey": "YOUR_SITE_KEY",
+                            "action": "login",
+                            "status": "queued",
+                            "createdAt": "2026-10-25T09:30:00.000Z"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: an unknown field or kind, a wrong type, a proxy on a kind that takes none or missing on one that needs it, a bad URL or action.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer credentials are missing or invalid.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "const": "Bearer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The JSON request body exceeds 1 MiB.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The request rate or the job queue limit was reached.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "Seconds before retrying."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server failure.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "operationId": "getJob",
+        "summary": "Get a job",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "wait",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^([0-9]|[12][0-9]|30)$"
+            },
+            "description": "Seconds (0 to 30; more is a 400) to hold the request open while the job has not finished; the job as it is then."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The job and, once finished, its token or error.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Job"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "requestId",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "examples": {
+                  "done": {
+                    "value": {
+                      "ok": true,
+                      "requestId": "0f6c1d2e-8a4b-4c3d-9e1f-2a3b4c5d6e7f",
+                      "data": {
+                        "id": "3b1f7c9a-2d4e-4f6a-8b0c-1d2e3f4a5b6c",
+                        "kind": "recap_v3",
+                        "url": "https://www.example.com/login",
+                        "siteKey": "YOUR_SITE_KEY",
+                        "action": "login",
+                        "status": "done",
+                        "createdAt": "2026-10-25T09:30:00.000Z",
+                        "startedAt": "2026-10-25T09:30:00.012Z",
+                        "finishedAt": "2026-10-25T09:30:03.400Z",
+                        "result": {
+                          "token": "03AFcWeA...",
+                          "expiresAt": "2026-10-25T09:32:00.000Z",
+                          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+                          "acceptLanguage": "en-US,en;q=0.9",
+                          "secUa": "\"Chromium\";v=\"156\", \"Google Chrome\";v=\"156\", \"Not.A/Brand\";v=\"99\"",
+                          "secUaMobile": "?0",
+                          "secUaPlatform": "\"Windows\""
+                        }
+                      }
+                    }
+                  },
+                  "running": {
+                    "value": {
+                      "ok": true,
+                      "requestId": "0f6c1d2e-8a4b-4c3d-9e1f-2a3b4c5d6e7f",
+                      "data": {
+                        "id": "3b1f7c9a-2d4e-4f6a-8b0c-1d2e3f4a5b6c",
+                        "kind": "recap_v3",
+                        "url": "https://www.example.com/login",
+                        "siteKey": "YOUR_SITE_KEY",
+                        "action": "login",
+                        "status": "running",
+                        "createdAt": "2026-10-25T09:30:00.000Z",
+                        "startedAt": "2026-10-25T09:30:00.012Z"
+                      }
+                    }
+                  },
+                  "failed": {
+                    "value": {
+                      "ok": true,
+                      "requestId": "0f6c1d2e-8a4b-4c3d-9e1f-2a3b4c5d6e7f",
+                      "data": {
+                        "id": "3b1f7c9a-2d4e-4f6a-8b0c-1d2e3f4a5b6c",
+                        "kind": "recap_v3",
+                        "url": "https://www.example.com/login",
+                        "siteKey": "YOUR_SITE_KEY",
+                        "action": "login",
+                        "status": "failed",
+                        "createdAt": "2026-10-25T09:30:00.000Z",
+                        "startedAt": "2026-10-25T09:30:00.012Z",
+                        "finishedAt": "2026-10-25T09:30:30.012Z",
+                        "error": {
+                          "code": "UPSTREAM_TIMEOUT",
+                          "message": "Upstream request timed out"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: an unknown field or kind, a wrong type, a proxy on a kind that takes none or missing on one that needs it, a bad URL or action.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer credentials are missing or invalid.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "const": "Bearer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such job (it may have expired or been forgotten).",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The JSON request body exceeds 1 MiB.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The request rate or the job queue limit was reached.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "Seconds before retrying."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server failure.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "description": "Returns the job. Once it is done, `result` holds the token; once it has failed, `error` holds the code. Add `wait` to hold the request open until the job finishes."
+      },
+      "delete": {
+        "tags": [
+          "Jobs"
+        ],
+        "operationId": "cancelJob",
+        "summary": "Cancel a job",
+        "description": "A queued job leaves the line and a running one is stopped; both then read as failed with JOB_CANCELLED. A finished job is removed from the server.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The job as it was left.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Job"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "requestId",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "examples": {
+                  "cancelled": {
+                    "value": {
+                      "ok": true,
+                      "requestId": "0f6c1d2e-8a4b-4c3d-9e1f-2a3b4c5d6e7f",
+                      "data": {
+                        "id": "3b1f7c9a-2d4e-4f6a-8b0c-1d2e3f4a5b6c",
+                        "kind": "recap_v3",
+                        "url": "https://www.example.com/login",
+                        "siteKey": "YOUR_SITE_KEY",
+                        "action": "login",
+                        "status": "failed",
+                        "createdAt": "2026-10-25T09:30:00.000Z",
+                        "finishedAt": "2026-10-25T09:30:01.000Z",
+                        "error": {
+                          "code": "JOB_CANCELLED",
+                          "message": "The job was cancelled"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: an unknown field or kind, a wrong type, a proxy on a kind that takes none or missing on one that needs it, a bad URL or action.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer credentials are missing or invalid.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "const": "Bearer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such job (it may have expired or been forgotten).",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The JSON request body exceeds 1 MiB.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The request rate or the job queue limit was reached.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "Seconds before retrying."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server failure.",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Your API token. Send it on every /v1 request as `Authorization: Bearer <API_TOKEN>`."
+      }
+    },
+    "schemas": {
+      "JobRequest": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "recap_v3",
+              "recap_v3_enterprise",
+              "recap_v3_proxy",
+              "recap_v3_enterprise_proxy"
+            ],
+            "description": "recap_v3: reCAPTCHA v3. recap_v3_enterprise: reCAPTCHA Enterprise. The _proxy kinds run through the proxy sent with the job; the others take none."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 4096,
+            "description": "The page the challenge is on; the token is for its origin."
+          },
+          "siteKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "action": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9/_]+$",
+            "minLength": 1,
+            "maxLength": 100,
+            "default": "submit",
+            "description": "The reCAPTCHA v3 action."
+          },
+          "proxy": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 512,
+            "description": "Proxy for the _proxy kinds: a pool id or IP:PORT:USER:PASS. Credentials are never echoed back."
+          }
+        },
+        "required": [
+          "kind",
+          "url",
+          "siteKey"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "kind": "recap_v3",
+            "url": "https://example.com/login",
+            "siteKey": "6Lc...",
+            "action": "login"
+          },
+          {
+            "kind": "recap_v3_enterprise_proxy",
+            "url": "https://example.com/",
+            "siteKey": "6Lc...",
+            "proxy": "203.0.113.7:8080:user:pass"
+          }
+        ]
+      },
+      "Job": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "recap_v3",
+              "recap_v3_enterprise",
+              "recap_v3_proxy",
+              "recap_v3_enterprise_proxy"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "siteKey": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "failed"
+            ],
+            "description": "Poll until done or failed (GET with ?wait=N holds the request until then). A token is good for about two minutes."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "string",
+                "maxLength": 32768
+              },
+              "expiresAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "description": "When the token stops being accepted: the validity the response gave, counted from the job start, so never later than the real moment."
+              },
+              "userAgent": {
+                "type": "string",
+                "description": "The user agent the token was made as: send it in each request to the site."
+              },
+              "acceptLanguage": {
+                "type": "string",
+                "description": "The Accept-Language the token was made with."
+              },
+              "secUa": {
+                "type": "string",
+                "description": "The sec-ch-ua header the token was made with; absent for a device that sends no client hints."
+              },
+              "secUaMobile": {
+                "type": "string",
+                "description": "The sec-ch-ua-mobile header; absent with secUa."
+              },
+              "secUaPlatform": {
+                "type": "string",
+                "description": "The sec-ch-ua-platform header; absent with secUa."
+              }
+            },
+            "required": [
+              "token",
+              "expiresAt",
+              "userAgent",
+              "acceptLanguage"
+            ],
+            "additionalProperties": false
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "A stable code: JOB_CANCELLED, JOB_TIMEOUT or SHUTTING_DOWN from the queue, else the code of the run that failed, such as SANDBOX_SOLVE_FAILED, UPSTREAM_TIMEOUT or PROTOCOL_EXECUTION_FAILED."
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "url",
+          "siteKey",
+          "action",
+          "status",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "JobSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "recap_v3",
+              "recap_v3_enterprise",
+              "recap_v3_proxy",
+              "recap_v3_enterprise_proxy"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "siteKey": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "failed"
+            ],
+            "description": "Poll until done or failed (GET with ?wait=N holds the request until then). A token is good for about two minutes."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "expiresAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "description": "When the token stops being accepted: the validity the response gave, counted from the job start, so never later than the real moment."
+              },
+              "userAgent": {
+                "type": "string",
+                "description": "The user agent the token was made as: send it in each request to the site."
+              },
+              "acceptLanguage": {
+                "type": "string",
+                "description": "The Accept-Language the token was made with."
+              },
+              "secUa": {
+                "type": "string",
+                "description": "The sec-ch-ua header the token was made with; absent for a device that sends no client hints."
+              },
+              "secUaMobile": {
+                "type": "string",
+                "description": "The sec-ch-ua-mobile header; absent with secUa."
+              },
+              "secUaPlatform": {
+                "type": "string",
+                "description": "The sec-ch-ua-platform header; absent with secUa."
+              }
+            },
+            "required": [
+              "expiresAt",
+              "userAgent",
+              "acceptLanguage"
+            ],
+            "additionalProperties": false
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "A stable code: JOB_CANCELLED, JOB_TIMEOUT or SHUTTING_DOWN from the queue, else the code of the run that failed, such as SANDBOX_SOLVE_FAILED, UPSTREAM_TIMEOUT or PROTOCOL_EXECUTION_FAILED."
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "url",
+          "siteKey",
+          "action",
+          "status",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": false
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Server-generated correlation identifier; caller-supplied identifiers are ignored."
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Stable machine-readable error code."
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable explanation without credentials."
+              },
+              "details": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "requestId",
+          "error"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

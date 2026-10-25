@@ -1,47 +1,167 @@
 ---
 title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+description: "Submit a job and read its token in two requests."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
+## Before you start
 
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
+You need:
 
-## Prerequisites
+- An API token. See [Authentication](/authentication).
+- The URL of a page on your site that runs reCAPTCHA v3.
+- The public site key of that page.
 
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+<Warning>
+  Each job makes real requests to Google for the page you name. Use your own site.
+</Warning>
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Submit a job">
+    Send the page URL, the site key and the action that your page uses.
 
     ```bash
-    npm install your-package
+    curl https://api.bapsolver.xyz/v1/jobs \
+      -H "Authorization: Bearer $BAPSOLVER_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "kind": "recap_v3",
+        "url": "https://www.example.com/login",
+        "siteKey": "YOUR_SITE_KEY",
+        "action": "login"
+      }'
+    ```
+
+    The API answers with `202 Accepted`. The `Location` header and `data.id` give the job ID.
+
+    ```json
+    {
+      "ok": true,
+      "requestId": "0f6c1d2e-8a4b-4c3d-9e1f-2a3b4c5d6e7f",
+      "data": {
+        "id": "3b1f7c9a-2d4e-4f6a-8b0c-1d2e3f4a5b6c",
+        "kind": "recap_v3",
+        "url": "https://www.example.com/login",
+        "siteKey": "YOUR_SITE_KEY",
+        "action": "login",
+        "status": "queued",
+        "createdAt": "2026-10-25T09:30:00.000Z"
+      }
+    }
     ```
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
+  <Step title="Wait for the result">
+    Read the job with `wait=20`. The request returns when the job finishes, or after 20 seconds.
 
     ```bash
-    your-cli init
+    curl "https://api.bapsolver.xyz/v1/jobs/JOB_ID?wait=20" \
+      -H "Authorization: Bearer $BAPSOLVER_TOKEN"
     ```
+
+    Repeat the request while `status` is `queued` or `running`.
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+  <Step title="Read the token">
+    When `status` is `done`, `data.result` holds the token:
 
-    ```bash
-    your-cli start
+    ```json
+    {
+      "ok": true,
+      "requestId": "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d",
+      "data": {
+        "id": "3b1f7c9a-2d4e-4f6a-8b0c-1d2e3f4a5b6c",
+        "kind": "recap_v3",
+        "url": "https://www.example.com/login",
+        "siteKey": "YOUR_SITE_KEY",
+        "action": "login",
+        "status": "done",
+        "createdAt": "2026-10-25T09:30:00.000Z",
+        "startedAt": "2026-10-25T09:30:00.012Z",
+        "finishedAt": "2026-10-25T09:30:03.400Z",
+        "result": {
+          "token": "03AFcWeA...",
+          "expiresAt": "2026-10-25T09:32:00.000Z",
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+          "acceptLanguage": "en-US,en;q=0.9",
+          "secUa": "\"Chromium\";v=\"156\", \"Google Chrome\";v=\"156\", \"Not.A/Brand\";v=\"99\"",
+          "secUaMobile": "?0",
+          "secUaPlatform": "\"Windows\""
+        }
+      }
+    }
     ```
+
+    When `status` is `failed`, `data.error` gives a code and a message. See [Errors](/reference/errors).
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## Full example
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+<CodeGroup>
+
+```javascript Node.js
+const API = 'https://api.bapsolver.xyz';
+const headers = {
+  Authorization: `Bearer ${process.env.BAPSOLVER_TOKEN}`,
+  'Content-Type': 'application/json',
+};
+
+async function getToken({ url, siteKey, action }) {
+  const submit = await fetch(`${API}/v1/jobs`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ kind: 'recap_v3', url, siteKey, action }),
+  });
+  if (!submit.ok) throw new Error((await submit.json()).error.code);
+  let job = (await submit.json()).data;
+
+  while (job.status === 'queued' || job.status === 'running') {
+    const poll = await fetch(`${API}/v1/jobs/${job.id}?wait=20`, { headers });
+    if (!poll.ok) throw new Error((await poll.json()).error.code);
+    job = (await poll.json()).data;
+  }
+  if (job.status === 'failed') throw new Error(job.error.code);
+  return job.result;
+}
+```
+
+```python Python
+import os
+import requests
+
+API = "https://api.bapsolver.xyz"
+HEADERS = {"Authorization": f"Bearer {os.environ['BAPSOLVER_TOKEN']}"}
+
+
+def get_token(url, site_key, action="submit"):
+    submit = requests.post(
+        f"{API}/v1/jobs",
+        headers=HEADERS,
+        json={"kind": "recap_v3", "url": url, "siteKey": site_key, "action": action},
+        timeout=30,
+    )
+    submit.raise_for_status()
+    job = submit.json()["data"]
+
+    while job["status"] in ("queued", "running"):
+        poll = requests.get(
+            f"{API}/v1/jobs/{job['id']}", headers=HEADERS, params={"wait": 20}, timeout=40
+        )
+        poll.raise_for_status()
+        job = poll.json()["data"]
+
+    if job["status"] == "failed":
+        raise RuntimeError(job["error"]["code"])
+    return job["result"]
+```
+
+</CodeGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Use the token" icon="paper-plane" href="/concepts/using-tokens">
+    Send the token with the same browser identity.
+  </Card>
+  <Card title="Job kinds and proxies" icon="route" href="/concepts/job-kinds">
+    Choose Enterprise, or send the job through your proxy.
+  </Card>
+</CardGroup>

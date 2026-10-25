@@ -1,0 +1,76 @@
+---
+title: "Errors"
+description: "Request errors, job errors, and what to do about each."
+---
+
+There are two kinds of error:
+
+- **Request errors.** The API refuses the HTTP request. The status code is `4xx` or `5xx` and the body holds `error`.
+- **Job errors.** The API accepted the job, but the job failed later. The poll returns `200` with `data.status` set to `failed` and `data.error` set.
+
+## Error body
+
+```json
+{
+  "ok": false,
+  "requestId": "5d6e7f8a-9b0c-4d1e-8f2a-3b4c5d6e7f8a",
+  "error": {
+    "code": "QUEUE_FULL",
+    "message": "The job queue is full; retry later"
+  }
+}
+```
+
+| Field     | Description                                                          |
+| --------- | -------------------------------------------------------------------- |
+| `code`    | A stable code. Write your logic against the code, not the message.   |
+| `message` | A short explanation for people. The wording can change.              |
+| `details` | Optional extra data.                                                 |
+
+Every response has an `X-Request-Id` header with the same value as `requestId`. Include it when you contact support.
+
+## Request errors
+
+| HTTP | Code                      | Cause                                                                                   | What to do                                  |
+| ---: | ------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------- |
+|  400 | `INVALID_REQUEST`         | The body or query is not valid: a missing or unknown field, a wrong type, a bad `wait` or `limit`. | Fix the request.                  |
+|  400 | `INVALID_KIND`            | `kind` is not a known job kind.                                                         | Use a kind from [Job kinds](/concepts/job-kinds). |
+|  400 | `INVALID_URL`             | `url` is not an absolute HTTP(S) URL, or it holds credentials.                          | Send the full page URL.                     |
+|  400 | `INVALID_ACTION`          | `action` has characters other than letters, digits, `_` and `/`, or is too long.        | Fix the action.                             |
+|  400 | `PROXY_REQUIRED`          | A `_proxy` kind has no `proxy`.                                                         | Add `proxy`, or use a kind without `_proxy`. |
+|  400 | `PROXY_NOT_ALLOWED`       | A kind without `_proxy` has a `proxy`.                                                  | Remove `proxy`, or use the `_proxy` kind.   |
+|  401 | `AUTHENTICATION_REQUIRED` | The API token is missing or wrong.                                                      | See [Authentication](/authentication).      |
+|  404 | `JOB_NOT_FOUND`           | No job has this ID. It may have expired or been deleted.                                | Submit a new job.                           |
+|  404 | `NOT_FOUND`               | The route does not exist.                                                               | Check the method and path.                  |
+|  413 | `BODY_TOO_LARGE`          | The body is larger than 1 MiB.                                                          | Send a smaller body.                        |
+|  429 | `RATE_LIMITED`            | Too many `POST` requests.                                                               | Wait for `Retry-After` seconds.             |
+|  429 | `QUEUE_FULL`              | Too many jobs are waiting.                                                              | Wait for `Retry-After` seconds.             |
+|  500 | `INTERNAL_ERROR`          | An unexpected server error.                                                             | Retry. If it continues, contact support.    |
+|  503 | `SHUTTING_DOWN`           | The service is restarting.                                                              | Retry after a short wait.                   |
+|  503 | `SANDBOX_DISABLED`        | The service is not set up to run jobs.                                                  | Contact support.                            |
+
+## Job errors
+
+| Code                                                                  | Cause                                                                                  | What to do                                         |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `JOB_CANCELLED`                                                       | You cancelled the job.                                                                 | None.                                              |
+| `JOB_TIMEOUT`                                                         | The job did not finish within its time limit, queue time included.                     | Submit a new job. If it repeats, slow down.        |
+| `SHUTTING_DOWN`                                                       | The service stopped before the job started.                                            | Submit a new job.                                  |
+| `UPSTREAM_TIMEOUT`                                                    | Google, the page or the proxy did not answer in time.                                  | Retry. With a proxy, check that it is fast and up. |
+| `UPSTREAM_NETWORK_ERROR`                                              | A connection to Google, the page or the proxy failed.                                  | Retry. With a proxy, check that it is reachable.   |
+| `UPSTREAM_HTTP_ERROR`                                                 | Google or the page answered with an error status.                                      | Retry later. With a proxy, try another proxy.      |
+| `PAGE_UNAVAILABLE`                                                    | The page could not be used: `404` or `410`, a redirect to another site, or not HTML.   | Check the page URL.                                |
+| `PROXY_INVALID`                                                       | The `proxy` value is not in a supported format.                                        | Use `IP:PORT:USER:PASS` or `IP:PORT`.              |
+| `PROXY_COOLDOWN`                                                      | The proxy failed several times and is paused for a short time.                         | Retry later, or use another proxy.                 |
+| `SANDBOX_SOLVE_FAILED`                                                | The service could not make a token for this page.                                      | Retry. If it repeats, contact support.             |
+| `PROTOCOL_EXECUTION_FAILED`                                           | An unexpected failure while making the token.                                          | Retry. If it repeats, contact support.             |
+| `SANDBOX_PROFILE_REQUIRED`, `SANDBOX_PROFILE_INVALID`, `SANDBOX_DEVICE_MISMATCH` | The service is not ready to make tokens.                                    | Contact support.                                   |
+
+The service can return other codes. Treat an unknown code as a failed job.
+
+## Retry safely
+
+- Retry `429` and `503` after the number of seconds in the `Retry-After` header. Without the header, wait at least one second.
+- Use exponential backoff for repeated failures.
+- Do not retry `400`, `401` or `413` without a change to the request.
+- A retry of `POST /v1/jobs` makes a new job. Cancel a job that you no longer need.

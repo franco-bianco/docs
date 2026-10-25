@@ -1,0 +1,78 @@
+---
+title: "Jobs"
+description: "How a job moves from queued to done, and how to wait for it."
+---
+
+A job is one request for one token. The API runs jobs in the background, so you submit a job and then read it.
+
+## Job states
+
+| Status    | Meaning                                                      | Final |
+| --------- | ------------------------------------------------------------ | ----- |
+| `queued`  | The job waits for a free worker.                             | No    |
+| `running` | A worker is making the token.                                | No    |
+| `done`    | The job has a token in `result`.                             | Yes   |
+| `failed`  | The job has no token. `error` gives the code and a message.  | Yes   |
+
+```text
+queued ──▶ running ──▶ done
+   │          │
+   └──────────┴──────▶ failed
+```
+
+A job can fail from `queued` too. For example, it fails with `JOB_TIMEOUT` when it waits too long, or with `JOB_CANCELLED` when you cancel it.
+
+## The job object
+
+| Field        | Type     | Description                                                     |
+| ------------ | -------- | --------------------------------------------------------------- |
+| `id`         | UUID     | The job ID.                                                     |
+| `kind`       | string   | The job kind that you sent.                                     |
+| `url`        | string   | The page URL that you sent.                                     |
+| `siteKey`    | string   | The site key that you sent.                                     |
+| `action`     | string   | The action. `submit` when you sent none.                        |
+| `status`     | string   | `queued`, `running`, `done` or `failed`.                        |
+| `createdAt`  | ISO time | When the API accepted the job.                                  |
+| `startedAt`  | ISO time | When a worker started the job. Absent until then.               |
+| `finishedAt` | ISO time | When the job finished. Absent until then.                       |
+| `result`     | object   | Only when `status` is `done`. See [Use the token](/concepts/using-tokens). |
+| `error`      | object   | Only when `status` is `failed`: `code` and `message`.           |
+
+## Wait for a result
+
+Use long polling. Add `wait` (0 to 30 seconds) to `GET /v1/jobs/{id}`. The API holds the request open until the job finishes or the wait ends, then returns the job as it is.
+
+```bash
+curl "https://api.bapsolver.xyz/v1/jobs/JOB_ID?wait=20" \
+  -H "Authorization: Bearer $BAPSOLVER_TOKEN"
+```
+
+- If `status` is still `queued` or `running`, send the request again.
+- Without `wait`, the API returns the job at once. If you poll this way, wait about one second between requests.
+
+<Tip>
+  A poll returns HTTP `200` for a failed job too. Always read `data.status`.
+</Tip>
+
+## Time limits
+
+A job must finish within 120 seconds of its submission, including the time it waits in the queue. A job that runs out of time fails with `JOB_TIMEOUT`.
+
+## Cancel a job
+
+Send `DELETE /v1/jobs/{id}`.
+
+- A `queued` or `running` job stops. It then reads as `failed` with the code `JOB_CANCELLED`.
+- A `done` or `failed` job is deleted from the service.
+
+The response holds the job as it was left.
+
+## Retention
+
+The service keeps a finished job for 5 minutes. After that, `GET /v1/jobs/{id}` returns `404` with `JOB_NOT_FOUND`. Read the token before then.
+
+Jobs are kept in memory. If the service restarts, it loses the jobs that it holds. A job that is still queued when the service stops fails with `SHUTTING_DOWN`. Submit it again.
+
+## List jobs
+
+`GET /v1/jobs` returns the jobs that the service holds, newest first. Filter with `status`, and set `limit` (1 to 200, default 50). The list never includes tokens. To get a token, read the job by its ID.

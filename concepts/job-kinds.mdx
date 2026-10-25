@@ -1,0 +1,49 @@
+---
+title: "Job kinds and proxies"
+description: "Choose reCAPTCHA v3 or Enterprise, and send a job through your own proxy."
+---
+
+The `kind` field selects the reCAPTCHA product and the network route.
+
+| Kind                        | Product                   | Proxy     |
+| --------------------------- | ------------------------- | --------- |
+| `recap_v3`                  | reCAPTCHA v3              | Not used  |
+| `recap_v3_enterprise`       | reCAPTCHA Enterprise      | Not used  |
+| `recap_v3_proxy`            | reCAPTCHA v3              | Required  |
+| `recap_v3_enterprise_proxy` | reCAPTCHA Enterprise      | Required  |
+
+## Choose the product
+
+Use the kind that matches the script on your page:
+
+- The page loads `https://www.google.com/recaptcha/api.js` → use a `recap_v3` kind.
+- The page loads `https://www.google.com/recaptcha/enterprise.js` → use a `recap_v3_enterprise` kind.
+
+## Send a job through a proxy
+
+With a `_proxy` kind, every request of the job goes through the proxy that you send in `proxy`. Use this when the token must come from a specific network.
+
+```json
+{
+  "kind": "recap_v3_proxy",
+  "url": "https://www.example.com/login",
+  "siteKey": "YOUR_SITE_KEY",
+  "action": "login",
+  "proxy": "203.0.113.7:8080:user:pass"
+}
+```
+
+The `proxy` value is `IP:PORT:USER:PASS`, or `IP:PORT` for a proxy without credentials. The API never returns the proxy or its credentials.
+
+The kind and the proxy must agree:
+
+| You send                          | Result                        |
+| --------------------------------- | ----------------------------- |
+| A `_proxy` kind without `proxy`   | `400` with `PROXY_REQUIRED`    |
+| Another kind with `proxy`         | `400` with `PROXY_NOT_ALLOWED` |
+
+## The action
+
+`action` is the reCAPTCHA action that your page sends, such as `login` or `checkout`. Use 1 to 100 letters, digits, `_` or `/`. When you omit it, the API uses `submit`.
+
+Send the same action that your server expects. The site's verification checks the action.

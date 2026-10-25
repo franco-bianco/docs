@@ -1,0 +1,38 @@
+---
+title: "Authentication"
+description: "Send your API token as a bearer token on every /v1 request."
+---
+
+Every request to a `/v1` endpoint needs your API token in the `Authorization` header:
+
+```http
+Authorization: Bearer YOUR_API_TOKEN
+```
+
+```bash
+curl https://api.bapsolver.xyz/v1/jobs \
+  -H "Authorization: Bearer $BAPSOLVER_TOKEN"
+```
+
+`GET /health` is public and needs no token.
+
+## Missing or wrong token
+
+The API answers with `401 Unauthorized`, the header `WWW-Authenticate: Bearer` and this body:
+
+```json
+{
+  "ok": false,
+  "requestId": "5d6e7f8a-9b0c-4d1e-8f2a-3b4c5d6e7f8a",
+  "error": {
+    "code": "AUTHENTICATION_REQUIRED",
+    "message": "A valid bearer token is required"
+  }
+}
+```
+
+## Keep your token safe
+
+- Keep the token on your server. Do not put it in a browser, a mobile app or a public repository.
+- Read it from an environment variable or a secret store.
+- If a token leaks, ask for a new one and stop using the old one.

@@ -1,0 +1,72 @@
+---
+title: "API overview"
+description: "Base URL, authentication, request format and response envelope."
+---
+
+## Base URL
+
+```text
+https://api.bapsolver.xyz
+```
+
+## Authentication
+
+Send your API token on every `/v1` request:
+
+```http
+Authorization: Bearer YOUR_API_TOKEN
+```
+
+See [Authentication](/authentication).
+
+## Requests
+
+- Send JSON bodies with `Content-Type: application/json`.
+- A body can be up to 1 MiB.
+- The API refuses unknown fields with `400`.
+
+## Responses
+
+Every response is JSON in an envelope.
+
+<CodeGroup>
+
+```json Success
+{
+  "ok": true,
+  "requestId": "0f6c1d2e-8a4b-4c3d-9e1f-2a3b4c5d6e7f",
+  "data": { }
+}
+```
+
+```json Error
+{
+  "ok": false,
+  "requestId": "0f6c1d2e-8a4b-4c3d-9e1f-2a3b4c5d6e7f",
+  "error": {
+    "code": "JOB_NOT_FOUND",
+    "message": "No such job"
+  }
+}
+```
+
+</CodeGroup>
+
+Every response also has these headers:
+
+| Header                   | Value                                         |
+| ------------------------ | --------------------------------------------- |
+| `X-Request-Id`           | The same ID as `requestId`.                   |
+| `Cache-Control`          | `no-store`. Do not cache responses.           |
+
+See [Errors](/reference/errors) for every error code.
+
+## Endpoints
+
+| Method   | Path             | Description                                   |
+| -------- | ---------------- | --------------------------------------------- |
+| `POST`   | `/v1/jobs`       | [Create a job](/api-reference/jobs/create-a-job). |
+| `GET`    | `/v1/jobs/{id}`  | [Get a job](/api-reference/jobs/get-a-job), with optional long polling. |
+| `GET`    | `/v1/jobs`       | [List jobs](/api-reference/jobs/list-jobs), without their tokens. |
+| `DELETE` | `/v1/jobs/{id}`  | [Cancel a job](/api-reference/jobs/cancel-a-job), or delete a finished one. |
+| `GET`    | `/health`        | [Check service health](/api-reference/service/check-service-health). No token. |

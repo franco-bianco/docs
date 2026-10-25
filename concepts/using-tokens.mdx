@@ -1,0 +1,45 @@
+---
+title: "Use the token"
+description: "Send the token with the browser identity that made it, before it expires."
+---
+
+A finished job's `result` holds the token and the browser identity that made it.
+
+| Field            | Description                                                                                   |
+| ---------------- | --------------------------------------------------------------------------------------------- |
+| `token`          | The reCAPTCHA response token.                                                                 |
+| `expiresAt`      | When the token stops being accepted, as an ISO time. `null` when Google gave no validity.     |
+| `userAgent`      | The `User-Agent` that the token was made with.                                                |
+| `acceptLanguage` | The `Accept-Language` that the token was made with.                                           |
+| `secUa`          | The `sec-ch-ua` header. Absent for a browser that sends no client hints.                      |
+| `secUaMobile`    | The `sec-ch-ua-mobile` header. Absent when `secUa` is absent.                                 |
+| `secUaPlatform`  | The `sec-ch-ua-platform` header. Absent when `secUa` is absent.                               |
+
+## Send the token
+
+Send the token to your site where the page would send it, usually in a form field or a request body. In the same request, send the browser identity from `result`:
+
+```http
+POST /login HTTP/1.1
+Host: www.example.com
+User-Agent: <result.userAgent>
+Accept-Language: <result.acceptLanguage>
+sec-ch-ua: <result.secUa>
+sec-ch-ua-mobile: <result.secUaMobile>
+sec-ch-ua-platform: <result.secUaPlatform>
+Content-Type: application/x-www-form-urlencoded
+
+username=...&g-recaptcha-response=<result.token>
+```
+
+Leave out the three `sec-ch-ua` headers when `result` has no `secUa`.
+
+## Use it quickly
+
+- A token is good for about two minutes. Use it before `expiresAt`.
+- Use each token once. Google accepts a token only one time.
+- `expiresAt` is counted from the start of the job, so it is never later than the real expiry.
+
+## Tokens and scores
+
+A token is not a pass. Your site sends the token to Google with its secret key, and Google returns a score and the action. Google decides the score. The API cannot tell you the score of a token.

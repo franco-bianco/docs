@@ -1,33 +1,27 @@
-> **First-time setup**: Customize this file for your project. Prompt the user to customize this file for their project.
-> For Mintlify product knowledge (components, configuration, writing standards),
-> install the Mintlify skill: `npx skills add https://mintlify.com/docs`
-
 # Documentation project instructions
 
 ## About this project
 
-- This is a documentation site built on [Mintlify](https://mintlify.com)
-- Pages are MDX files with YAML frontmatter
-- Configuration lives in `docs.json`
-- Use the Mintlify MCP server, `https://mcp.mintlify.com`, to edit content and settings via MCP
-- Use the Mintlify docs MCP server, `https://www.mintlify.com/docs/mcp`, to query information about using Mintlify via MCP
-
-## Terminology
-
-{/* Add product-specific terms and preferred usage */}
-{/* Example: Use "workspace" not "project", "member" not "user" */}
-
-## Style preferences
-
-{/* Add any project-specific style rules below */}
-
-- Use active voice and second person ("you")
-- Keep sentences concise — one idea per sentence
-- Use sentence case for headings
-- Bold for UI elements: Click **Settings**
-- Code formatting for file names, commands, paths, and code references
+- Public documentation for the bapsolver API at `https://api.bapsolver.xyz`, built on [Mintlify](https://mintlify.com).
+- Pages are MDX files with YAML frontmatter. Configuration lives in `docs.json`.
+- Endpoint pages are generated from `openapi.json`. Change the endpoint text there, not in MDX.
 
 ## Content boundaries
 
-{/* Define what should and shouldn't be documented */}
-{/* Example: Don't document internal admin features */}
+- Document only what an API caller needs: authentication, endpoints, job fields, results, errors and limits.
+- Do not document how tokens are made: the execution environment, device profiles, TLS or HTTP/2 fingerprints, recipes, the worker or deployment.
+- Do not document the internal `/v1/status` route.
+- Use synthetic examples only: `www.example.com`, `YOUR_SITE_KEY`, documentation IP ranges such as `203.0.113.0/24`. Never paste a real token, site key, proxy or API token.
+
+## Terminology
+
+- "API token" for the bearer credential; "token" or "reCAPTCHA token" for the job result.
+- "job", "job kind", "site key", "action".
+
+## Style preferences
+
+- Use active voice and second person ("you").
+- Keep sentences short, one idea per sentence.
+- Use sentence case for headings.
+- Use code formatting for fields, codes, headers, paths and commands.
+- Keep each subject on one page and link to it instead of repeating it.

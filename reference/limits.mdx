@@ -1,0 +1,28 @@
+---
+title: "Limits"
+description: "Request size, rate, queue and time limits."
+---
+
+| Limit                 | Value                                         | When you pass it                     |
+| --------------------- | --------------------------------------------- | ------------------------------------ |
+| Request body          | 1 MiB                                         | `413` with `BODY_TOO_LARGE`          |
+| Submission rate       | 60 `POST` requests per minute for the service | `429` with `RATE_LIMITED`            |
+| Waiting jobs          | 1,000 jobs in the queue                       | `429` with `QUEUE_FULL`              |
+| Job duration          | 120 seconds from submission, queue included   | Job fails with `JOB_TIMEOUT`         |
+| Long poll `wait`      | 0 to 30 seconds                               | `400` with `INVALID_REQUEST`         |
+| List `limit`          | 1 to 200, default 50                          | `400` with `INVALID_REQUEST`         |
+| Job retention         | 5 minutes after the job finishes              | `404` with `JOB_NOT_FOUND`           |
+| Token validity        | About 2 minutes, see `expiresAt`              | Google rejects the token             |
+
+The rate limit and the queue limit apply to the whole service, not to each API token. Only `POST` requests count toward the rate limit. Reading and listing jobs do not count.
+
+These values can change. When you receive `429`, wait for the number of seconds in the `Retry-After` header.
+
+## Field limits
+
+| Field     | Limit                                                  |
+| --------- | ------------------------------------------------------ |
+| `url`     | Absolute HTTP(S) URL without credentials, up to 4,096 characters |
+| `siteKey` | 1 to 256 characters                                    |
+| `action`  | 1 to 100 letters, digits, `_` or `/`                   |
+| `proxy`   | 3 to 512 characters                                    |
